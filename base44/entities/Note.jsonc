@@ -1,0 +1,117 @@
+{
+  "name": "Note",
+  "type": "object",
+  "properties": {
+    "senderId": {
+      "type": "string"
+    },
+    "recipientId": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "text",
+        "audio"
+      ]
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "audioUrl": {
+      "type": "string"
+    },
+    "audioDuration": {
+      "type": "number",
+      "minimum": 0
+    },
+    "originalFileName": {
+      "type": "string"
+    },
+    "startTimeMs": {
+      "type": "number",
+      "minimum": 0
+    },
+    "endTimeMs": {
+      "type": "number",
+      "minimum": 0
+    },
+    "durationMs": {
+      "type": "number",
+      "minimum": 0
+    },
+    "mimeType": {
+      "type": "string"
+    },
+    "deliveredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "readAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reaction": {
+      "type": "object",
+      "properties": {
+        "heart": {
+          "type": "boolean"
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "sending",
+        "sent",
+        "delivered",
+        "read",
+        "failed"
+      ],
+      "default": "sending"
+    }
+  },
+  "required": [
+    "senderId",
+    "recipientId",
+    "type",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "data.senderId": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.senderId": "{{user.id}}"
+        },
+        {
+          "data.recipientId": "{{user.id}}"
+        }
+      ]
+    },
+    "update": {
+      "data.recipientId": "{{user.id}}"
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.senderId": "{{user.id}}"
+        },
+        {
+          "data.recipientId": "{{user.id}}"
+        }
+      ]
+    }
+  }
+}

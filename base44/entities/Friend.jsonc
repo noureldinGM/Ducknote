@@ -1,0 +1,39 @@
+{
+  "name": "Friend",
+  "type": "object",
+  "properties": {
+    "ownerId": {
+      "type": "string"
+    },
+    "targetId": {
+      "type": "string"
+    },
+    "targetUsername": {
+      "type": "string"
+    },
+    "targetDisplayName": {
+      "type": "string"
+    },
+    "targetProfileImage": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "ownerId",
+    "targetId"
+  ],
+  "rls": {
+    "create": {
+      "data.ownerId": "{{user.id}}"
+    },
+    "read": {
+      "data.ownerId": "{{user.id}}"
+    },
+    "update": {
+      "data.ownerId": "{{user.id}}"
+    },
+    "delete": {
+      "data.ownerId": "{{user.id}}"
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "name": "Account",
+  "type": "object",
+  "properties": {
+    "username": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 24,
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "displayName": {
+      "type": "string",
+      "maxLength": 50
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "user"
+      ],
+      "default": "user"
+    },
+    "email": {
+      "type": "string"
+    },
+    "profileImage": {
+      "type": "string"
+    },
+    "salt": {
+      "type": "string"
+    },
+    "passwordHash": {
+      "type": "string"
+    },
+    "sessionToken": {
+      "type": "string"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "notifyText": {
+      "type": "boolean",
+      "default": true
+    },
+    "notifyAudio": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "username",
+    "displayName",
+    "role",
+    "salt",
+    "passwordHash"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
