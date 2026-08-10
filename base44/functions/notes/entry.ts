@@ -14,11 +14,11 @@ export default async function(req) {
 
     if (action === 'list') {
       const mode = body.mode === 'sent' ? 'sent' : 'received';
-      const all = await base44.asServiceRole.entities.Note.list(undefined, 500);
-      const mine = all
-        .filter((n) => (mode === 'received' ? n.recipientId === acc.id : n.senderId === acc.id))
-        .filter((n) => !isExpired(n))
-        .sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime());
+      const nowIso = new Date().toISOString();
+      const query = mode === 'sent'
+        ? { senderId: acc.id, expiresAt: { $gt: nowIso } }
+        : { recipientId: acc.id, expiresAt: { $gt: nowIso } };
+      const mine = await base44.asServiceRole.entities.Note.filter(query, '-created_date', 100);
 
       if (mode === 'received') {
         const toDeliver = mine.filter((n) => n.status === 'sent' || n.status === 'sending');
@@ -32,11 +32,17 @@ export default async function(req) {
 
       const ids = new Set();
       for (const n of mine) { ids.add(n.senderId); ids.add(n.recipientId); }
-      const accounts = await base44.asServiceRole.entities.Account.list(undefined, 500);
-      const profileMap = {};
-      for (const a of accounts) if (ids.has(a.id)) profileMap[a.id] = toPublicAccount(a);
+      let profileMap = {};
+      if (ids.size) {
+        const accounts = await base44.asServiceRole.entities.Account.filter(
+          { id: { $in: [...ids] } },
+          undefined,
+          ids.size
+        );
+        for (const a of accounts) profileMap[a.id] = toPublicAccount(a);
+      }
 
-      const notes = mine.slice(0, 100).map((n) => ({
+      const notes = mine.map((n) => ({
         ...n,
         sender: profileMap[n.senderId] || null,
         recipient: profileMap[n.recipientId] || null,
