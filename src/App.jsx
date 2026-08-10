@@ -22,6 +22,8 @@ import Profile from '@/pages/Profile';
 import AdminDashboard from '@/pages/AdminDashboard';
 import AdminUsers from '@/pages/AdminUsers';
 import AdminActivity from '@/pages/AdminActivity';
+import NotificationProvider from '@/components/notifications/NotificationProvider';
+import NoteDetail from '@/pages/NoteDetail';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings } = useAuth();
@@ -42,8 +44,10 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+        <Route element={<NotificationProvider />}>
         <Route path="/" element={<RoleLanding />} />
         <Route path="/change-password" element={<ChangePassword />} />
+        <Route path="/note/:noteId" element={<NoteDetail />} />
         <Route element={<RoleRoute role="user" />}>
           <Route element={<AppShell role="user" />}>
             <Route path="/home" element={<Home />} />
@@ -61,6 +65,7 @@ const AuthenticatedApp = () => {
             <Route path="/admin/activity" element={<AdminActivity />} />
             <Route path="/admin/profile" element={<Profile />} />
           </Route>
+        </Route>
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

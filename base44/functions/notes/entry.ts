@@ -89,6 +89,28 @@ export default async function(req) {
         expiresAt: new Date(Date.now() + NOTE_TTL_MS).toISOString()
       });
       await logActivity(base44, acc.id, acc.displayName, type === 'audio' ? 'audio_note_sent' : 'text_note_sent', 'note', note.id, recipient.username);
+
+      // Best-effort push notification to recipient (requires branded mobile app + Base44 User mapping)
+      try {
+        const shouldNotify = type === 'audio' ? recipient.notifyAudio !== false : recipient.notifyText !== false;
+        if (shouldNotify && recipient.email) {
+          const users = await base44.asServiceRole.entities.User.filter({ email: recipient.email }, undefined, 1);
+          const bUser = users[0];
+          if (bUser) {
+            const content = type === 'audio'
+              ? `🎵 @${acc.username} sent you an audio note`
+              : `💌 @${acc.username} sent you a note`;
+            await base44.asServiceRole.integrations.Core.SendPushNotification({
+              user_id: bUser.id,
+              title: 'DuckNote',
+              content,
+              action_label: 'Open',
+              action_url: `/note/${note.id}`
+            });
+          }
+        }
+      } catch {}
+
       return Response.json({ note: { ...note, audioUrl: undefined } });
     }
 
@@ -108,6 +130,30 @@ export default async function(req) {
       const reaction = heart ? { heart: true, at: new Date().toISOString() } : { heart: false, at: null };
       await base44.asServiceRole.entities.Note.update(note.id, { reaction });
       return Response.json({ reaction });
+    }
+
+    if (action === 'getNote') {
+      const note = await base44.asServiceRole.entities.Note.get(body.noteId).catch(() => null);
+      if (!note) return Response.json({ error: 'Not found.' }, { status: 404 });
+      if (note.recipientId !== acc.id && note.senderId !== acc.id) return Response.json({ error: 'Not found.' }, { status: 404 });
+      if (isExpired(note)) return Response.json({ expired: true });
+      let audioUrl = note.audioUrl;
+      if (note.type === 'audio' && audioUrl && !audioUrl.startsWith('http')) {
+        try {
+          const res = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({ file_uri: audioUrl, expires_in: 300 });
+          audioUrl = res?.signed_url || res?.data?.signed_url || '';
+        } catch { audioUrl = ''; }
+      }
+      const sender = await base44.asServiceRole.entities.Account.get(note.senderId).catch(() => null);
+      const recipientProfile = await base44.asServiceRole.entities.Account.get(note.recipientId).catch(() => null);
+      return Response.json({
+        note: {
+          ...note,
+          audioUrl,
+          sender: sender ? toPublicAccount(sender) : null,
+          recipient: recipientProfile ? toPublicAccount(recipientProfile) : null
+        }
+      });
     }
 
     return Response.json({ error: 'Unknown action.' }, { status: 400 });

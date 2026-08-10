@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, Sparkles, X } from "lucide-react";
+import { Heart } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useNotes } from "@/hooks/useNotes";
@@ -31,16 +31,10 @@ export default function Home() {
   const { friends } = useFriends();
   const [openId, setOpenId] = useState<string | null>(null);
   const openNote = notes.find((n) => n.id === openId) || null;
-  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = base44.entities.Note.subscribe((event) => {
       if (event.type === "create" && event.data?.recipientId === user?.id) {
-        const isAudio = event.data.type === "audio";
-        const enabled = isAudio ? user?.notifyAudio !== false : user?.notifyText !== false;
-        if (!enabled) return;
-        setToast(isAudio ? `🎵 A new audio note arrived` : `💌 A new note arrived`);
-        setTimeout(() => setToast(null), 5000);
         reload();
       }
     });
@@ -64,16 +58,6 @@ export default function Home() {
 
   return (
     <div className="space-y-5">
-      <AnimatePresence>
-        {toast && (
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="fixed left-1/2 top-4 z-50 -translate-x-1/2">
-            <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-rose-500 to-violet-500 px-5 py-3 text-sm font-bold text-white shadow-lg">
-              <Sparkles className="h-4 w-4" />{toast}<button onClick={() => setToast(null)}><X className="h-4 w-4 opacity-70" /></button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className="px-1">
         <p className="text-sm font-bold text-rose-400">{greeting()}, {user?.displayName || user?.full_name || "lovely"} 💗</p>
         <h2 className="font-heading text-3xl font-black text-rose-950">{unread > 0 ? "You have something new..." : "Your little notes"}</h2>
