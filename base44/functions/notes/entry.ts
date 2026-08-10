@@ -42,8 +42,21 @@ export default async function(req) {
         for (const a of accounts) profileMap[a.id] = toPublicAccount(a);
       }
 
+      const signedAudio = {};
+      const privateAudioNotes = mine.filter((n) => n.type === 'audio' && n.audioUrl && !n.audioUrl.startsWith('http'));
+      if (privateAudioNotes.length) {
+        await Promise.all(privateAudioNotes.map(async (n) => {
+          try {
+            const res = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({ file_uri: n.audioUrl, expires_in: 300 });
+            const signed = res?.signed_url || res?.data?.signed_url;
+            if (signed) signedAudio[n.id] = signed;
+          } catch {}
+        }));
+      }
+
       const notes = mine.map((n) => ({
         ...n,
+        audioUrl: signedAudio[n.id] || (n.audioUrl && n.audioUrl.startsWith('http') ? n.audioUrl : ''),
         sender: profileMap[n.senderId] || null,
         recipient: profileMap[n.recipientId] || null,
         status: mode === 'received' && (n.status === 'sent' || n.status === 'sending') ? 'delivered' : n.status
@@ -76,7 +89,7 @@ export default async function(req) {
         expiresAt: new Date(Date.now() + NOTE_TTL_MS).toISOString()
       });
       await logActivity(base44, acc.id, acc.displayName, type === 'audio' ? 'audio_note_sent' : 'text_note_sent', 'note', note.id, recipient.username);
-      return Response.json({ note });
+      return Response.json({ note: { ...note, audioUrl: undefined } });
     }
 
     if (action === 'markRead') {

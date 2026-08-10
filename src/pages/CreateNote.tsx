@@ -73,8 +73,8 @@ export default function CreateNote() {
     setSending(true);
     try {
       const fileObj = new File([clip.blob], `clip.${clip.mimeType === "audio/wav" ? "wav" : "m4a"}`, { type: clip.mimeType });
-      const upload: any = await base44.integrations.Core.UploadFile({ file: fileObj });
-      const audioUrl = upload.data?.file_url || upload.file_url;
+      const upload: any = await base44.integrations.Core.UploadPrivateFile({ file: fileObj });
+      const audioUrl = upload.data?.file_uri || upload.file_uri;
       if (!audioUrl) throw new Error("Upload failed");
       await callFunction("notes", {
         action: "create",

@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
-import { sha256, randomToken, normalizeUsername, toPublicAccount, verifyAccount, logActivity } from '../../shared/accountUtils.ts';
+import { randomToken, normalizeUsername, toPublicAccount, verifyAccount, logActivity, hashPassword, verifyPassword } from '../../shared/accountUtils.ts';
 
 export default async function(req) {
   try {
@@ -15,8 +15,12 @@ export default async function(req) {
       const acc = all.find((a) => normalizeUsername(a.username) === username);
       if (!acc) return Response.json({ error: 'Wrong username or password.' }, { status: 401 });
       if (acc.active === false) return Response.json({ error: 'This account is disabled.' }, { status: 403 });
-      const hash = await sha256(acc.salt + ':' + password);
-      if (hash !== acc.passwordHash) return Response.json({ error: 'Wrong username or password.' }, { status: 401 });
+      const valid = await verifyPassword(password, acc.salt, acc.passwordHash);
+      if (!valid) return Response.json({ error: 'Wrong username or password.' }, { status: 401 });
+      if (!acc.passwordHash.startsWith('pbkdf2$')) {
+        const upgradedHash = await hashPassword(password, acc.salt);
+        await base44.asServiceRole.entities.Account.update(acc.id, { passwordHash: upgradedHash });
+      }
       const token = randomToken();
       await base44.asServiceRole.entities.Account.update(acc.id, { sessionToken: token });
       return Response.json({ account: toPublicAccount(acc), token });
@@ -43,11 +47,11 @@ export default async function(req) {
       if (!acc) return Response.json({ error: 'Your session expired. Please log in again.' }, { status: 401 });
       const currentPassword = String(body.currentPassword || '');
       const newPassword = String(body.newPassword || '');
-      const cur = await sha256(acc.salt + ':' + currentPassword);
-      if (cur !== acc.passwordHash) return Response.json({ error: 'Your current password is incorrect.' }, { status: 401 });
+      const valid = await verifyPassword(currentPassword, acc.salt, acc.passwordHash);
+      if (!valid) return Response.json({ error: 'Your current password is incorrect.' }, { status: 401 });
       if (newPassword.length < 6) return Response.json({ error: 'New password must be at least 6 characters.' }, { status: 400 });
       const salt = randomToken();
-      const passwordHash = await sha256(salt + ':' + newPassword);
+      const passwordHash = await hashPassword(newPassword, salt);
       await base44.asServiceRole.entities.Account.update(acc.id, { salt, passwordHash, sessionToken: body.token });
       await logActivity(base44, acc.id, acc.displayName, 'password_reset', 'account', acc.id, acc.username);
       return Response.json({ ok: true });
@@ -162,7 +166,7 @@ export default async function(req) {
         return Response.json({ error: 'That username is already taken.' }, { status: 409 });
       }
       const salt = randomToken();
-      const passwordHash = await sha256(salt + ':' + password);
+      const passwordHash = await hashPassword(password, salt);
       const created = await base44.asServiceRole.entities.Account.create({
         username, displayName, role, email, salt, passwordHash, active: true
       });
@@ -239,7 +243,7 @@ export default async function(req) {
       const target = await base44.asServiceRole.entities.Account.get(targetId).catch(() => null);
       if (!target) return Response.json({ error: 'Account not found.' }, { status: 404 });
       const salt = randomToken();
-      const passwordHash = await sha256(salt + ':' + newPassword);
+      const passwordHash = await hashPassword(newPassword, salt);
       await base44.asServiceRole.entities.Account.update(targetId, { salt, passwordHash, sessionToken: '' });
       await logActivity(base44, admin.id, admin.displayName, 'password_reset', 'account', targetId, target.username);
       return Response.json({ ok: true });
