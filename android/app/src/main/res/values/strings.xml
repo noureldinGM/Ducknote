@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DuckNote</string>
+    <string name="title_activity_main">DuckNote</string>
+    <string name="package_name">com.ducknote.app</string>
+    <string name="custom_url_scheme">com.ducknote.app</string>
+</resources>

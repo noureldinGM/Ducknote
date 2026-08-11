@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
-import { verifyAccount, toPublicAccount, logActivity } from '../../shared/accountUtils.ts';
+import { verifyAccount, toPublicAccount, logActivity } from './accountUtils.ts';
 
 const NOTE_TTL_MS = 24 * 60 * 60 * 1000;
 const isExpired = (n) => n.expiresAt ? new Date(n.expiresAt).getTime() <= Date.now() : false;

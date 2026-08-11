@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
-import { randomToken, normalizeUsername, toPublicAccount, verifyAccount, logActivity, hashPassword, verifyPassword } from '../../shared/accountUtils.ts';
+import { randomToken, normalizeUsername, toPublicAccount, verifyAccount, logActivity, hashPassword, verifyPassword } from './accountUtils.ts';
 
 export default async function(req) {
   try {
