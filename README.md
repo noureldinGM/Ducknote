@@ -1,77 +1,109 @@
-# Base44 Project
+# 🦆 DuckNote
 
-Use this repository to run and edit the app locally, then publish changes back through Base44.
+DuckNote is a private note-sharing app designed for sending personal text and audio notes directly to another person.
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+## ✨ Features
 
-## Prerequisites
+- 📝 Send text notes
+- 🎙️ Send audio notes
+- ❤️ React to received notes
+- 🔔 Push notifications
+- 📱 Android application
+- 🧩 Android home-screen widget
+- ▶️ Play audio directly from the widget
+- 🔐 Supabase authentication
+- ☁️ Supabase backend
 
-1. Clone the repository using the project's Git URL.
-2. Navigate to the project directory.
-3. Install dependencies: `npm install`.
-4. Install the Base44 CLI: `npm install -g base44@latest`.
+## 📱 Android App
 
-See the [Base44 CLI docs](https://docs.base44.com/developers/references/cli/get-started/overview) if you want to run Base44 commands directly.
+DuckNote has a native Android application built with Capacitor.
 
-## Run Locally
+The Android version includes native functionality for:
 
-Run the full local development environment from the project root:
+- Home-screen widgets
+- Widget reactions
+- Audio playback
+- Background audio playback
+- Push notifications
+
+### Download
+
+The latest Android APK will be available in the project's GitHub Releases:
+
+**[Download DuckNote for Android](https://github.com/nourTRYTOIMPROVE/Ducknote/releases)**
+
+> DuckNote is currently distributed directly as an APK and is not distributed through Google Play.
+
+## 🌐 Web App
+
+DuckNote is also available as a web application.
+
+The web version is deployed separately through Vercel.
+
+## 🛠️ Tech Stack
+
+- React
+- TypeScript / JavaScript
+- Vite
+- Capacitor
+- Android
+- Supabase
+- Vercel
+
+## 🚀 Development
+
+Clone the repository:
 
 ```bash
-base44 dev
-```
+git clone https://github.com/nourTRYTOIMPROVE/Ducknote.git
+cd Ducknote
 
-`base44 dev` starts the local Base44 development backend and, when this app is configured for it, also starts the frontend dev server for you. Use the frontend URL printed by the command.
+Install dependencies:
 
-For example, when the Base44 project config includes a `serveCommand`, `base44 dev` can launch the frontend too:
+npm install
 
-```json5
-{
-  "site": {
-    "serveCommand": "npm run dev"
-  }
-}
-```
+Run the web application locally:
 
-In a Base44 project this lives in `base44/config.jsonc`.
-
-## Run Only The Frontend
-
-If you only want to work on the frontend against the hosted Base44 backend, run:
-
-```bash
 npm run dev
-```
 
-Open the local URL printed by Vite.
+Build the web application:
 
-## Use The Hosted Backend
+npm run build
 
-For frontend-only development, create or update `.env.local` in the project root:
+Sync the Android project:
 
-```bash
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=https://your-app.base44.app
-```
+npx cap sync android
 
-`VITE_BASE44_APP_ID` identifies the Base44 app.
+Build the Android release:
 
-`VITE_BASE44_APP_BASE_URL` tells the Base44 Vite plugin where to send local `/api` requests. Point it at your deployed Base44 app URL when you want the local frontend to use the hosted backend.
+cd android
+./gradlew assembleRelease
 
-When you use `base44 dev`, the command injects the local Base44 values for you, so `.env.local` is mainly needed for frontend-only workflows.
+The generated release APK can be found at:
 
-## Publish Your Changes
+android/app/build/outputs/apk/release/app-release.apk
+📦 Releases
 
-After pushing your changes to git, open the Base44 dashboard and publish the app:
+Android releases are distributed through GitHub Releases.
 
-```bash
-base44 dashboard open
-```
+Each release should include a version number, for example:
 
-## Docs & Support
+DuckNote v1.0
 
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
+with the corresponding APK attached to the release.
 
-Base44 CLI command reference: [https://docs.base44.com/developers/references/cli/commands/introduction](https://docs.base44.com/developers/references/cli/commands/introduction)
+🧪 Project Status
 
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+DuckNote is currently in active development and testing.
+
+Known Issue
+The Like/reaction state between the Android app and the home-screen widget may not always synchronize correctly.
+🔐 Security
+
+Do not commit private credentials, passwords, signing keys, or keystore files to this repository.
+
+The Android release signing key is stored separately from the project source code.
+
+📄 License
+
+This project is currently intended for personal and testing use.
