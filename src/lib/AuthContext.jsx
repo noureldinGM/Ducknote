@@ -1,118 +1,366 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+} from "react";
 
-const AuthContext = createContext();
-const STORAGE_KEY = 'ducknote_session_v1';
+import { supabase } from "@/lib/supabase";
+import {
+  initPushNotifications,
+  resetPushNotifications,
+} from "@/lib/pushNotifications";
 
-async function callAccountAuth(payload) {
-  let res;
-  try {
-    res = await base44.functions.invoke('accountAuth', payload);
-  } catch (err) {
-    const data = err?.response?.data || err?.data || {};
-    const msg = data?.error || err?.message || 'Something went wrong.';
-    throw new Error(typeof msg === 'string' ? msg : 'Something went wrong.');
-  }
-  if (res?.status >= 400) {
-    throw new Error(res?.data?.error || 'Something went wrong.');
-  }
-  return res?.data;
-}
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
+
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
+  const [isLoadingPublicSettings, setIsLoadingPublicSettings] =
+    useState(true);
+
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  useEffect(() => { init(); }, []);
+  // =========================================================
+  // Get current DuckNote account from Supabase Edge Function
+  // =========================================================
 
-  const init = async () => {
+  const loadCurrentUser = async (accessToken = null) => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const session = JSON.parse(raw);
-        const data = await callAccountAuth({ action: 'me', id: session.id, token: session.token });
-        if (data?.account) {
-          setUser(data.account);
-          setToken(session.token);
-        } else {
-          localStorage.removeItem(STORAGE_KEY);
+      const { data, error } = await supabase.functions.invoke(
+        "account-auth",
+        {
+          body: {
+            action: "me",
+          },
+          headers: accessToken
+            ? {
+              Authorization: `Bearer ${accessToken}`,
+            }
+            : undefined,
+        }
+      );
+
+      console.log("[DuckNote Auth] ME response:", {
+        data,
+        error: error
+          ? {
+            message: error.message,
+            name: error.name,
+            context: error.context,
+          }
+          : null,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.account) {
+        throw new Error("Invalid session.");
+      }
+
+      console.log("[DuckNote Auth] ME account:", {
+        id: data.account.id,
+        username: data.account.username,
+        role: data.account.role,
+        active: data.account.active,
+      });
+
+      setUser(data.account);
+
+      return data.account;
+    } catch (err) {
+      console.error("[DuckNote Auth] ME failed:", {
+        message: err?.message,
+        name: err?.name,
+      });
+
+      setUser(null);
+      setToken(null);
+
+      return null;
+    }
+  };
+
+  // =========================================================
+  // Initialize authentication
+  // =========================================================
+
+  useEffect(() => {
+    let mounted = true;
+
+    const init = async () => {
+      try {
+        setAuthError(null);
+
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error) {
+          throw error;
+        }
+
+        if (!mounted) return;
+
+        if (session?.access_token) {
+          setToken(session.access_token);
+
+          const account = await loadCurrentUser(
+            session.access_token
+          );
+
+          if (!account && mounted) {
+            await supabase.auth.signOut();
+          }
+        }
+      } catch (err) {
+        if (mounted) {
+          setUser(null);
+          setToken(null);
+          setAuthError(
+            err?.message || "Something went wrong."
+          );
+        }
+      } finally {
+        if (mounted) {
+          setIsLoadingAuth(false);
+          setIsLoadingPublicSettings(false);
+          setAuthChecked(true);
         }
       }
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
-    } finally {
-      setIsLoadingAuth(false);
-      setIsLoadingPublicSettings(false);
-      setAuthChecked(true);
+    };
+
+    init();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // =========================================================
+  // Listen for Supabase authentication changes
+  // =========================================================
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.access_token) {
+          setToken(session.access_token);
+        } else {
+          setToken(null);
+        }
+
+        if (event === "SIGNED_OUT") {
+          setUser(null);
+          setToken(null);
+          resetPushNotifications();
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // =========================================================
+  // Initialize push notifications after authentication
+  // =========================================================
+
+  useEffect(() => {
+    if (!token || !user) {
+      return;
     }
-  };
+
+    initPushNotifications(token);
+  }, [token, user]);
+
+  // =========================================================
+  // Login
+  // =========================================================
 
   const login = async (username, password) => {
-    const data = await callAccountAuth({ action: 'login', username, password });
-    if (!data?.account) throw new Error('Login failed.');
-    const session = { id: data.account.id, token: data.token };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    setUser(data.account);
-    setToken(data.token);
-    return data.account;
+    setAuthError(null);
+
+    try {
+      const { data, error } =
+        await supabase.functions.invoke("account-auth", {
+          body: {
+            action: "login",
+            username,
+            password,
+          },
+        });
+
+      if (error) {
+        throw new Error(
+          error.message || "Login failed."
+        );
+      }
+
+      if (!data?.account || !data?.token) {
+        throw new Error("Login failed.");
+      }
+
+      console.log("[DuckNote Auth] LOGIN account:", {
+        id: data.account.id,
+        username: data.account.username,
+        role: data.account.role,
+        active: data.account.active,
+      });
+
+      // The Edge Function authenticates through Supabase Auth
+      // and returns the Supabase session tokens.
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.setSession({
+        access_token: data.token,
+        refresh_token: data.refreshToken,
+      });
+
+      console.log("[DuckNote Auth] SESSION:", {
+        hasSession: !!session,
+        hasAccessToken: !!session?.access_token,
+        userId: session?.user?.id,
+        email: session?.user?.email,
+      });
+
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      setUser(data.account);
+      setToken(data.token);
+
+      return data.account;
+    } catch (err) {
+      const message =
+        err?.message || "Login failed.";
+
+      setAuthError(message);
+
+      throw new Error(message);
+    }
   };
+
+  // =========================================================
+  // Check current authentication
+  // =========================================================
 
   const checkUserAuth = async () => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
     try {
-      const session = JSON.parse(raw);
-      const data = await callAccountAuth({ action: 'me', id: session.id, token: session.token });
-      if (data?.account) {
-        setUser(data.account);
-        setToken(session.token);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        setUser(null);
+        setToken(null);
+        return;
       }
-    } catch {}
+
+      setToken(session.access_token);
+
+      const account = await loadCurrentUser(
+        session.access_token
+      );
+
+      if (!account) {
+        await supabase.auth.signOut();
+      }
+    } catch {
+      setUser(null);
+      setToken(null);
+    }
   };
 
-  const logout = (shouldRedirect = true) => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      try {
-        const session = JSON.parse(raw);
-        callAccountAuth({ action: 'logout', id: session.id, token: session.token }).catch(() => {});
-      } catch {}
+  // =========================================================
+  // Logout
+  // =========================================================
+
+  const logout = async (shouldRedirect = true) => {
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Even if the server-side logout fails,
+      // clear the local authentication state.
     }
-    localStorage.removeItem(STORAGE_KEY);
+
     setUser(null);
     setToken(null);
-    if (shouldRedirect) window.location.href = '/login';
+    setAuthError(null);
+
+    if (shouldRedirect) {
+      window.location.href = "/login";
+    }
   };
 
-  const navigateToLogin = () => { window.location.href = '/login'; };
+  // =========================================================
+  // Navigation
+  // =========================================================
+
+  const navigateToLogin = () => {
+    window.location.href = "/login";
+  };
+
+  // =========================================================
+  // Provider
+  // =========================================================
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      token,
-      isAuthenticated: !!user,
-      isLoadingAuth,
-      isLoadingPublicSettings,
-      authError,
-      authChecked,
-      appPublicSettings: null,
-      logout,
-      navigateToLogin,
-      checkUserAuth,
-      checkAppState: init,
-      login
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+
+        isAuthenticated: !!user,
+
+        isLoadingAuth,
+        isLoadingPublicSettings,
+
+        authError,
+        authChecked,
+
+        appPublicSettings: null,
+
+        logout,
+        navigateToLogin,
+
+        checkUserAuth,
+
+        checkAppState: async () => {
+          await checkUserAuth();
+        },
+
+        login,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
+// =========================================================
+// useAuth
+// =========================================================
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+
+  if (!context) {
+    throw new Error(
+      "useAuth must be used within an AuthProvider"
+    );
+  }
+
   return context;
 };

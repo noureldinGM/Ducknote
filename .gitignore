@@ -30,3 +30,10 @@ dist-ssr
 .env
 .vite
 base44/.app.jsonc
+
+duck-note-firebase-adminsdk-fbsvc-fb7a6e58ca.json
+
+firebase-secrets.tmp.env
+
+supabase/.temp/
+supabase/functions/notes/deno.json.bak

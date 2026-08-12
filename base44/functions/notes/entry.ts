@@ -2,7 +2,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { verifyAccount, toPublicAccount, logActivity } from './accountUtils.ts';
 
 const NOTE_TTL_MS = 24 * 60 * 60 * 1000;
-const isExpired = (n) => n.expiresAt ? new Date(n.expiresAt).getTime() <= Date.now() : false;
+
+const isExpired = (n: any) =>
+  n.expiresAt
+    ? new Date(n.expiresAt).getTime() <= Date.now()
+    : false;
 
 export default async function(req) {
   try {
@@ -32,7 +36,7 @@ export default async function(req) {
 
       const ids = new Set();
       for (const n of mine) { ids.add(n.senderId); ids.add(n.recipientId); }
-      let profileMap = {};
+      const profileMap: Record<string, any> = {};
       if (ids.size) {
         const accounts = await base44.asServiceRole.entities.Account.filter(
           { id: { $in: [...ids] } },
@@ -42,10 +46,10 @@ export default async function(req) {
         for (const a of accounts) profileMap[a.id] = toPublicAccount(a);
       }
 
-      const signedAudio = {};
-      const privateAudioNotes = mine.filter((n) => n.type === 'audio' && n.audioUrl && !n.audioUrl.startsWith('http'));
+      const signedAudio: Record<string, string> = {};
+      const privateAudioNotes = mine.filter((n: any) => n.type === 'audio' && n.audioUrl && !n.audioUrl.startsWith('http'));
       if (privateAudioNotes.length) {
-        await Promise.all(privateAudioNotes.map(async (n) => {
+        await Promise.all(privateAudioNotes.map(async (n: any) => {
           try {
             const res = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({ file_uri: n.audioUrl, expires_in: 300 });
             const signed = res?.signed_url || res?.data?.signed_url;
@@ -54,7 +58,7 @@ export default async function(req) {
         }));
       }
 
-      const notes = mine.map((n) => ({
+      const notes = mine.map((n: any) => ({
         ...n,
         audioUrl: signedAudio[n.id] || (n.audioUrl && n.audioUrl.startsWith('http') ? n.audioUrl : ''),
         sender: profileMap[n.senderId] || null,
@@ -71,8 +75,30 @@ export default async function(req) {
       const text = String(body.text || '').slice(0, 4000);
       if (!recipientId) return Response.json({ error: 'Pick someone first.' }, { status: 400 });
       if (recipientId === acc.id) return Response.json({ error: 'You cannot send a note to yourself.' }, { status: 400 });
-      const recipient = await base44.asServiceRole.entities.Account.get(recipientId).catch(() => null);
-      if (!recipient || recipient.active === false) return Response.json({ error: 'That person no longer has an account.' }, { status: 400 });
+      const recipient =
+  await base44.asServiceRole.entities.Account
+    .get(recipientId)
+    .catch(() => null);
+
+if (!recipient) {
+  return Response.json(
+    {
+      error:
+        'That person no longer has an account.'
+    },
+    { status: 400 }
+  );
+}
+
+if (recipient.active === false) {
+  return Response.json(
+    {
+      error:
+        'That person no longer has an account.'
+    },
+    { status: 400 }
+  );
+}
       const note = await base44.asServiceRole.entities.Note.create({
         senderId: acc.id,
         recipientId,
@@ -157,7 +183,12 @@ export default async function(req) {
     }
 
     return Response.json({ error: 'Unknown action.' }, { status: 400 });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
+  } catch (error: any) {
+  return Response.json(
+    {
+      error: error?.message || "Internal server error.",
+    },
+    { status: 500 }
+  );
+}
 }

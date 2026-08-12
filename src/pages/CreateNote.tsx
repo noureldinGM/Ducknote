@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Heart, FileAudio, MessageCircle, Check, Sparkles, Music } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthContext";
 import { callFunction } from "@/lib/callFn";
 import UserSearch from "@/components/notes/UserSearch";
@@ -60,8 +60,9 @@ export default function CreateNote() {
     try {
       await callFunction("notes", { action: "create", recipientId: recipient.id, type: "text", text: text.trim(), id: user.id, token });
       setStep("sent");
-    } catch {
-      setError(UPLOAD_FAILED_MESSAGE);
+    } catch (err: any) {
+      console.error("[DuckNote] sendText failed:", err);
+      setError(err?.message || "Couldn't send the note.");
     } finally {
       setSending(false);
     }
@@ -69,18 +70,54 @@ export default function CreateNote() {
 
   const sendAudio = async () => {
     setError("");
-    if (!recipient?.id || !user?.id || !clip) { setError("Something's missing."); return; }
+
+    if (!recipient?.id || !user?.id || !clip) {
+      setError("Something's missing.");
+      return;
+    }
+
     setSending(true);
+
     try {
-      const fileObj = new File([clip.blob], `clip.${clip.mimeType === "audio/wav" ? "wav" : "m4a"}`, { type: clip.mimeType });
-      const upload: any = await base44.integrations.Core.UploadPrivateFile({ file: fileObj });
-      const audioUrl = upload.data?.file_uri || upload.file_uri;
-      if (!audioUrl) throw new Error("Upload failed");
+      const extension =
+        clip.mimeType === "audio/wav"
+          ? "wav"
+          : clip.mimeType === "audio/ogg"
+            ? "ogg"
+            : "m4a";
+
+      const fileName = `clip-${crypto.randomUUID()}.${extension}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const fileObj = new File(
+        [clip.blob],
+        fileName,
+        { type: clip.mimeType }
+      );
+
+      const { error: uploadError } = await supabase.storage
+        .from("voice-notes")
+        .upload(filePath, fileObj, {
+          contentType: clip.mimeType,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error(
+          "[DuckNote] Supabase audio upload failed:",
+          uploadError
+        );
+
+        throw new Error(
+          uploadError.message || "Audio upload failed."
+        );
+      }
+
       await callFunction("notes", {
         action: "create",
         recipientId: recipient.id,
         type: "audio",
-        audioUrl,
+        audioUrl: filePath,
         audioDuration: clip.durationMs / 1000,
         originalFileName: clip.originalFileName,
         startTimeMs: clip.startTimeMs,
@@ -88,11 +125,16 @@ export default function CreateNote() {
         durationMs: clip.durationMs,
         mimeType: clip.mimeType,
         id: user.id,
-        token
+        token,
       });
+
       setStep("sent");
-    } catch {
-      setError(UPLOAD_FAILED_MESSAGE);
+    } catch (err: any) {
+      console.error("[DuckNote] sendAudio failed:", err);
+
+      setError(
+        err?.message || "Couldn't send the voice note."
+      );
     } finally {
       setSending(false);
     }

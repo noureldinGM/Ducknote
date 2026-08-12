@@ -49,7 +49,7 @@ export default function Home() {
       try {
         await callFunction("notes", { action: "markRead", noteId: note.id, id: user.id, token });
         reload();
-      } catch {}
+      } catch { }
     }
   };
 
@@ -86,7 +86,7 @@ export default function Home() {
         <div className="space-y-4">
           {notes.map((n, i) => (
             <motion.div key={n.id} initial={i === 0 && n.status !== "read" ? { opacity: 0, scale: 0.96 } : false} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25 }}>
-              <NoteBubble note={n} other={n.sender} direction="received" onOpen={() => open(n)} onReact={() => toggleReaction(n, user.id, token).then(() => reload()).catch(() => {})} />
+              <NoteBubble note={n} other={n.sender} direction="received" onOpen={() => open(n)} onReact={() => toggleReaction(n, user.id, token).then(() => reload()).catch(() => { })} />
             </motion.div>
           ))}
         </div>
@@ -106,7 +106,13 @@ export default function Home() {
               </div>
             </div>
             <p className="mt-4 whitespace-pre-wrap text-lg font-medium leading-relaxed text-rose-950">{openNote.text}</p>
-            <p className="mt-4 text-xs text-rose-300">{formatDistanceToNow(new Date(openNote.created_date), { addSuffix: true })}</p>
+            <p className="mt-4 text-xs text-rose-300">
+              {openNote.created_at
+                ? formatDistanceToNow(new Date(openNote.created_at), {
+                  addSuffix: true,
+                })
+                : "Just now"}
+            </p>
           </div>
         )}
       </AppDialog>

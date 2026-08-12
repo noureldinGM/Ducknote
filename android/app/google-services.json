@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "338404382839",
+    "project_id": "duck-note",
+    "storage_bucket": "duck-note.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:338404382839:android:d23e90fbffc2c3ef228e72",
+        "android_client_info": {
+          "package_name": "com.ducknote.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAYjoyjfaNZZUkysBV8OEgggEI9o3-BAOI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

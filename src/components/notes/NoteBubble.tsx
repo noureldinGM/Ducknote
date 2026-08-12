@@ -8,7 +8,7 @@ import ReactionButton from "./ReactionButton";
 import { displayUsername } from "@/lib/username";
 
 type PublicUser = { id: string; username: string; displayName: string; profileImage?: string };
-type Note = { id: string; text: string; type: string; status: any; created_date: string; senderId: string; recipientId: string; reaction?: { heart: boolean; at?: string } };
+type Note = { id: string; text: string; type: string; status: any; created_at: string; senderId: string; recipientId: string; reaction?: { heart: boolean; at?: string } };
 
 export default function NoteBubble({ note, other, direction, onOpen, onReact }: { note: Note; other?: PublicUser; direction: "received" | "sent"; onOpen?: () => void; onReact?: () => void }) {
   if (note.type === "audio") {
@@ -34,7 +34,7 @@ export default function NoteBubble({ note, other, direction, onOpen, onReact }: 
         </div>
         <p className="mt-3 line-clamp-4 whitespace-pre-wrap font-medium leading-relaxed text-rose-950">{note.text}</p>
         <div className="mt-3 flex items-center justify-between">
-          <span className="text-xs text-rose-300">{formatDistanceToNow(new Date(note.created_date), { addSuffix: true })}</span>
+          <span className="text-xs text-rose-300">{formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}</span>
           {isReceived ? (
             <ReactionButton active={reactionHeart} onToggle={() => onReact?.()} />
           ) : (

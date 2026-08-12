@@ -80,10 +80,156 @@ export async function logActivity(base44: any, actorId: string, actorName: strin
   } catch {}
 }
 
-export async function verifyAccount(base44: any, id: string, token: string) {
+export async function verifyAccount(
+  base44: any,
+  id: string,
+  token: string
+) {
   if (!id || !token) return null;
-  const acc = await base44.asServiceRole.entities.Account.get(id).catch(() => null);
-  if (!acc || acc.active === false) return null;
-  if (acc.sessionToken !== token) return null;
-  return acc;
+
+  // =====================================================
+  // 1. Try the old Base44 Account first
+  // =====================================================
+
+  const base44Account =
+    await base44.asServiceRole.entities.Account
+      .get(id)
+      .catch(() => null);
+
+  if (
+    base44Account &&
+    base44Account.active !== false &&
+    base44Account.sessionToken === token
+  ) {
+    return base44Account;
+  }
+
+  // =====================================================
+  // 2. Verify the Supabase access token
+  // =====================================================
+
+  try {
+    const deno = (globalThis as any).Deno;
+
+    const supabaseUrl =
+      deno?.env?.get("VITE_SUPABASE_URL") ||
+      "https://uovssbmxwwowzurblrik.supabase.co";
+
+    const supabasePublishableKey =
+      deno?.env?.get("VITE_SUPABASE_PUBLISHABLE_KEY") ||
+      "sb_publishable_OJrFUM26Lzv9eWUPMT4r3A_5tO2tFTM";
+
+    const response = await fetch(
+      `${supabaseUrl}/auth/v1/user`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          apikey: supabasePublishableKey,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error(
+        "verifyAccount: Supabase token verification failed:",
+        response.status
+      );
+
+      return null;
+    }
+
+    const supabaseUser = await response.json();
+
+    if (!supabaseUser?.id) {
+      return null;
+    }
+
+    // The token must belong to the requested user.
+    if (supabaseUser.id !== id) {
+      console.error(
+        "verifyAccount: Supabase user ID does not match requested account ID."
+      );
+
+      return null;
+    }
+
+    // =====================================================
+    // 3. If a Base44 account exists, use it
+    // =====================================================
+
+    if (
+      base44Account &&
+      base44Account.active !== false
+    ) {
+      return base44Account;
+    }
+
+    // =====================================================
+    // 4. New Supabase account
+    //    Load its profile from Supabase
+    // =====================================================
+
+    const profileResponse = await fetch(
+      `${supabaseUrl}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=*`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          apikey: supabasePublishableKey,
+        },
+      }
+    );
+
+    if (!profileResponse.ok) {
+      console.error(
+        "verifyAccount: Could not load Supabase profile:",
+        profileResponse.status
+      );
+
+      return null;
+    }
+
+    const profiles = await profileResponse.json();
+    const profile = profiles?.[0];
+
+    if (!profile || profile.active === false) {
+      return null;
+    }
+
+    // =====================================================
+    // 5. Convert Supabase profile to the account shape
+    //    expected by the notes function
+    // =====================================================
+
+    return {
+      id: profile.id,
+      username: profile.username || "",
+      displayName:
+        profile.display_name ||
+        profile.username ||
+        "",
+      role: profile.role || "user",
+      email: profile.email || "",
+      profileImage:
+        profile.profile_image || "",
+      active: profile.active !== false,
+      notifyText:
+        profile.notify_text !== false,
+      notifyAudio:
+        profile.notify_audio !== false,
+
+      // No legacy Base44 session token.
+      // Authentication was already verified
+      // through Supabase above.
+      sessionToken: null,
+    };
+  } catch (error: any) {
+    console.error(
+      "verifyAccount: Supabase verification error:",
+      error?.message || error
+    );
+
+    return null;
+  }
 }
