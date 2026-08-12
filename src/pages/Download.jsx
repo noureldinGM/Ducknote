@@ -1,7 +1,6 @@
 import { Download, Smartphone, Mic, Heart, Bell } from "lucide-react";
 
-const APK_URL =
-  "https://github.com/nourTRYTOIMPROVE/Ducknote/releases/download/v1.0.0/DuckNote-v1.0.0.apk";
+const APK_URL = "/DuckNote-v1.0.0.apk";
 
 export default function DownloadPage() {
   return (
