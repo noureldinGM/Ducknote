@@ -201,8 +201,44 @@ export const AuthProvider = ({ children }) => {
         });
 
       if (error) {
+        const status =
+          error?.context?.status ??
+          error?.status;
+
+        if (status === 401) {
+          throw new Error(
+            "Wrong username or password."
+          );
+        }
+
+        let serverMessage = "";
+
+        try {
+          const context = error?.context;
+
+          if (context) {
+            const response =
+              typeof context.clone === "function"
+                ? context.clone()
+                : context;
+
+            if (typeof response.json === "function") {
+              const body = await response.json().catch(() => null);
+
+              serverMessage =
+                body?.error ||
+                body?.message ||
+                "";
+            }
+          }
+        } catch {
+          // Ignore response parsing errors.
+        }
+
         throw new Error(
-          error.message || "Login failed."
+          serverMessage ||
+          error.message ||
+          "Login failed."
         );
       }
 
