@@ -111,11 +111,24 @@ export async function callFunction(
       );
 
     if (error) {
-      const serverMessage =
-        await getSupabaseErrorMessage(error);
+  const status =
+    error?.context?.status ??
+    error?.status;
 
-      throw new Error(serverMessage);
-    }
+  if (
+    payload?.action === "login" &&
+    status === 401
+  ) {
+    throw new Error(
+      "Wrong username or password."
+    );
+  }
+
+  const serverMessage =
+    await getSupabaseErrorMessage(error);
+
+  throw new Error(serverMessage);
+}
 
     if (data?.error) {
       throw new Error(data.error);
