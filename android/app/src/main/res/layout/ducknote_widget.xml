@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:background="#FFF7F8">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="🦆 DuckNote"
+            android:textColor="#24131A"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Just now"
+            android:textColor="#8A737B"
+            android:textSize="10sp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_note_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="5dp"
+        android:orientation="vertical"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_sender"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ahmed"
+            android:textColor="#24131A"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/widget_note"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Your little note"
+            android:textColor="#24131A"
+            android:textSize="18sp"
+            android:lineSpacingExtra="1dp"
+            android:maxLines="2"
+            android:ellipsize="end" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/widget_react"
+            android:layout_width="44dp"
+            android:layout_height="38dp"
+            android:gravity="center"
+            android:text="♡"
+            android:textColor="#D14B6A"
+            android:textSize="25sp"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/widget_play"
+            android:layout_width="44dp"
+            android:layout_height="38dp"
+            android:gravity="center"
+            android:text="▶"
+            android:textColor="#24131A"
+            android:textSize="19sp"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</LinearLayout>

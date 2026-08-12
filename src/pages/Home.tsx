@@ -10,6 +10,7 @@ import { useNotes } from "@/hooks/useNotes";
 import { useFriends } from "@/hooks/useFriends";
 import { toggleReaction } from "@/lib/notes";
 import { callFunction } from "@/lib/callFn";
+import { updateDuckNoteWidget } from "@/lib/duckNoteWidget";
 
 import NoteBubble from "@/components/notes/NoteBubble";
 import SurfaceCard from "@/components/system/SurfaceCard";
@@ -38,6 +39,65 @@ export default function Home() {
     error,
     reload,
   } = useNotes("received");
+  useEffect(() => {
+    const handleWidgetReact = async (
+      event: Event
+    ) => {
+      const customEvent =
+        event as CustomEvent<{
+          noteId?: string;
+        }>;
+
+      const noteId =
+        customEvent.detail?.noteId;
+
+      if (!noteId || !user?.id || !token) {
+        return;
+      }
+
+      const note =
+        notes.find(
+          (item: any) =>
+            item.id === noteId
+        );
+
+      if (!note) {
+        return;
+      }
+
+      try {
+        await toggleReaction(
+          note,
+          user.id,
+          token
+        );
+
+        await reload();
+      } catch (error) {
+        console.error(
+          "[DuckNote Widget] Reaction failed:",
+          error
+        );
+      }
+    };
+
+    window.addEventListener(
+      "ducknote-widget-react",
+      handleWidgetReact
+    );
+
+    return () => {
+      window.removeEventListener(
+        "ducknote-widget-react",
+        handleWidgetReact
+      );
+    };
+  }, [
+    notes,
+    user?.id,
+    token,
+    reload,
+  ]);
 
   const { friends } = useFriends();
 
@@ -45,6 +105,20 @@ export default function Home() {
 
   const openNote =
     notes.find((n: any) => n.id === openId) || null;
+
+  // =====================================================
+  // Update Android Widget with the latest received note
+  // =====================================================
+
+  useEffect(() => {
+    const latestNote = notes[0];
+
+    if (!latestNote) {
+      return;
+    }
+
+    updateDuckNoteWidget(latestNote);
+  }, [notes]);
 
   // Keep the latest reload function without
   // forcing the Realtime subscription to restart.
@@ -133,7 +207,9 @@ export default function Home() {
         });
 
         reload();
-      } catch { }
+      } catch {
+        // Ignore mark-as-read errors.
+      }
     }
   };
 
