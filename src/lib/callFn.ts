@@ -18,6 +18,69 @@ const supabaseAccountAuthActions = new Set([
   "resetPassword",
 ]);
 
+async function getSupabaseErrorMessage(error: any) {
+  // Supabase FunctionsHttpError normally exposes the
+  // server response through error.context.
+  try {
+    const context = error?.context;
+
+    if (context) {
+      // Clone the response when possible so we do not consume it.
+      const response =
+        typeof context.clone === "function"
+          ? context.clone()
+          : context;
+
+      if (typeof response.json === "function") {
+        const body = await response.json().catch(() => null);
+
+        if (body?.error) {
+          return typeof body.error === "string"
+            ? body.error
+            : "Something went wrong.";
+        }
+
+        if (body?.message) {
+          return typeof body.message === "string"
+            ? body.message
+            : "Something went wrong.";
+        }
+      }
+
+      if (typeof response.text === "function") {
+        const text = await response.text().catch(() => "");
+
+        if (text) {
+          try {
+            const body = JSON.parse(text);
+
+            if (body?.error) {
+              return typeof body.error === "string"
+                ? body.error
+                : "Something went wrong.";
+            }
+
+            if (body?.message) {
+              return typeof body.message === "string"
+                ? body.message
+                : "Something went wrong.";
+            }
+          } catch {
+            // Ignore non-JSON response bodies.
+          }
+        }
+      }
+    }
+  } catch {
+    // Ignore response parsing errors.
+  }
+
+  return (
+    error?.message ||
+    "Something went wrong."
+  );
+}
+
 export async function callFunction(
   name: string,
   payload: any
@@ -48,32 +111,10 @@ export async function callFunction(
       );
 
     if (error) {
-      let serverMessage = "";
+      const serverMessage =
+        await getSupabaseErrorMessage(error);
 
-      try {
-        const context = (error as any).context;
-
-        if (context?.clone) {
-          const response = context.clone();
-
-          const body = await response
-            .json()
-            .catch(() => null);
-
-          serverMessage =
-            body?.error ||
-            body?.message ||
-            "";
-        }
-      } catch {
-        // Ignore response parsing errors.
-      }
-
-      throw new Error(
-        serverMessage ||
-          error.message ||
-          "Something went wrong."
-      );
+      throw new Error(serverMessage);
     }
 
     if (data?.error) {
@@ -104,32 +145,10 @@ export async function callFunction(
       );
 
     if (error) {
-      let serverMessage = "";
+      const serverMessage =
+        await getSupabaseErrorMessage(error);
 
-      try {
-        const context = (error as any).context;
-
-        if (context?.clone) {
-          const response = context.clone();
-
-          const body = await response
-            .json()
-            .catch(() => null);
-
-          serverMessage =
-            body?.error ||
-            body?.message ||
-            "";
-        }
-      } catch {
-        // Ignore response parsing errors.
-      }
-
-      throw new Error(
-        serverMessage ||
-          error.message ||
-          "Something went wrong."
-      );
+      throw new Error(serverMessage);
     }
 
     if (data?.error) {
@@ -139,11 +158,7 @@ export async function callFunction(
     return data;
   }
 
-  // =====================================================
-  // Unknown function
-  // =====================================================
-
   throw new Error(
-    `Unsupported function: ${name}`
+    `Unknown function: ${name}`
   );
 }
