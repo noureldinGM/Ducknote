@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { UserPlus, Trash2, KeyRound, Loader2, X, ShieldCheck, UserCog, Camera } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { callFunction } from "@/lib/callFn";
@@ -9,7 +10,7 @@ import SurfaceCard from "@/components/system/SurfaceCard";
 import EmptyState from "@/components/system/EmptyState";
 import ErrorState from "@/components/system/ErrorState";
 import { displayUsername, validateUsername } from "@/lib/username";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 
 type Account = { id: string; username: string; displayName: string; role: string; email?: string; profileImage?: string; active: boolean };
 
@@ -57,7 +58,7 @@ export default function AdminUsers() {
     setEditTarget(a); setEditName(a.displayName); setEditUsername(a.username); setEditImage(a.profileImage || ""); setEditError("");
   };
 
-  const saveEdit = async (e: React.FormEvent) => {
+  const saveEdit = async (e: FormEvent) => {
     e.preventDefault();
     if (!editTarget) return;
     setEditError("");
@@ -74,7 +75,7 @@ export default function AdminUsers() {
     }
   };
 
-  const create = async (e: React.FormEvent) => {
+  const create = async (e: FormEvent) => {
     e.preventDefault();
     setFormError("");
     const uErr = validateUsername(username);
@@ -105,7 +106,7 @@ export default function AdminUsers() {
     }
   };
 
-  const doReset = async (e: React.FormEvent) => {
+  const doReset = async (e: FormEvent) => {
     e.preventDefault();
     setResetError("");
     if (newPassword.length < 6) { setResetError("Password must be at least 6 characters."); return; }
@@ -142,10 +143,10 @@ export default function AdminUsers() {
               <button type="button" onClick={() => { setShowForm(false); resetForm(); }} className="text-rose-400 hover:text-rose-600"><X className="h-5 w-5" /></button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div><label className="mb-1 block text-xs font-bold text-rose-950">Username</label><AppInput value={username} onChange={(e) => setUsername(e.target.value)} placeholder="username" required /></div>
-              <div><label className="mb-1 block text-xs font-bold text-rose-950">Display name</label><AppInput value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Lovely name" required /></div>
-              <div><label className="mb-1 block text-xs font-bold text-rose-950">Password</label><AppInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" required /></div>
-              <div><label className="mb-1 block text-xs font-bold text-rose-950">Email (admin only)</label><AppInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@example.com" /></div>
+              <div><label className="mb-1 block text-xs font-bold text-rose-950">Username</label><AppInput value={username} onChange={(e: ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)} placeholder="username" required /></div>
+              <div><label className="mb-1 block text-xs font-bold text-rose-950">Display name</label><AppInput value={displayName} onChange={(e: ChangeEvent<HTMLInputElement>) => setDisplayName(e.target.value)} placeholder="Lovely name" required /></div>
+              <div><label className="mb-1 block text-xs font-bold text-rose-950">Password</label><AppInput type="password" value={password} onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} placeholder="At least 6 characters" required /></div>
+              <div><label className="mb-1 block text-xs font-bold text-rose-950">Email (admin only)</label><AppInput type="email" value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} placeholder="admin@example.com" /></div>
             </div>
             <div className="flex items-center gap-3">
               <label className="text-xs font-bold text-rose-950">Role</label>
@@ -197,7 +198,7 @@ export default function AdminUsers() {
                 <button type="button" onClick={() => setResetTarget(null)} className="text-rose-400 hover:text-rose-600"><X className="h-5 w-5" /></button>
               </div>
               <p className="mb-3 text-sm text-rose-500">Set a new password for {displayUsername(resetTarget.username)}. They'll be logged out everywhere.</p>
-              <AppInput type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" required />
+              <AppInput type="password" value={newPassword} onChange={(e: ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)} placeholder="New password" required />
               {resetError && <div className="mt-3"><ErrorState message={resetError} /></div>}
               <AppButton disabled={busy} className="mt-4 w-full bg-gradient-to-r from-rose-500 to-violet-500 text-white">{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save new password</AppButton>
             </form>
@@ -215,12 +216,40 @@ export default function AdminUsers() {
               </div>
               <div className="mb-4 flex items-center gap-3">
                 <UserAvatar src={editImage} name={editName} className="h-14 w-14" />
-                <label className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl bg-rose-50 px-3 text-xs font-bold text-rose-600"><Camera className="h-3.5 w-3.5" />Photo<input type="file" accept="image/*" className="sr-only" onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { const { file_url } = await base44.integrations.Core.UploadFile({ file: f }); setEditImage(file_url); } catch {} }} /></label>
+                <label className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl bg-rose-50 px-3 text-xs font-bold text-rose-600"><Camera className="h-3.5 w-3.5" />Photo<input type="file" accept="image/*" className="sr-only" onChange={async (e: ChangeEvent<HTMLInputElement>) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+
+                  try {
+                    const extension = f.name.split(".").pop() || "jpg";
+                    const path = `profiles/${editTarget?.id}/${crypto.randomUUID()}.${extension}`;
+
+                    const { error } = await supabase.storage
+                      .from("profile-images")
+                      .upload(path, f, {
+                        cacheControl: "3600",
+                        upsert: false,
+                        contentType: f.type || "image/jpeg",
+                      });
+
+                    if (error) {
+                      throw error;
+                    }
+
+                    const { data } = supabase.storage
+                      .from("profile-images")
+                      .getPublicUrl(path);
+
+                    setEditImage(data.publicUrl);
+                  } catch (error) {
+                    console.error("[DuckNote] Profile image upload failed:", error);
+                  }
+                }} /></label>
               </div>
               <label className="mb-1 block text-xs font-bold text-rose-950">Display name</label>
-              <AppInput value={editName} onChange={(e) => setEditName(e.target.value)} className="mb-3" required />
+              <AppInput value={editName} onChange={(e: ChangeEvent<HTMLInputElement>) => setEditName(e.target.value)} className="mb-3" required />
               <label className="mb-1 block text-xs font-bold text-rose-950">Username</label>
-              <AppInput value={editUsername} onChange={(e) => setEditUsername(e.target.value)} required />
+              <AppInput value={editUsername} onChange={(e: ChangeEvent<HTMLInputElement>) => setEditUsername(e.target.value)} required />
               {editError && <div className="mt-3"><ErrorState message={editError} /></div>}
               <AppButton disabled={busy} className="mt-4 w-full bg-gradient-to-r from-rose-500 to-violet-500 text-white">{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save changes</AppButton>
             </form>

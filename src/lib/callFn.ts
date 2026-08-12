@@ -1,4 +1,3 @@
-import { base44 } from "@/api/base44Client";
 import { supabase } from "@/lib/supabase";
 
 const supabaseAccountAuthActions = new Set([
@@ -7,6 +6,7 @@ const supabaseAccountAuthActions = new Set([
   "addFriend",
   "removeFriend",
   "changePassword",
+  "updateProfile",
 
   // Admin actions
   "adminStats",
@@ -18,7 +18,10 @@ const supabaseAccountAuthActions = new Set([
   "resetPassword",
 ]);
 
-export async function callFunction(name: string, payload: any) {
+export async function callFunction(
+  name: string,
+  payload: any
+) {
   // =====================================================
   // Supabase account-auth
   // =====================================================
@@ -32,43 +35,46 @@ export async function callFunction(name: string, payload: any) {
       payload?.adminToken;
 
     const { data, error } =
-      await supabase.functions.invoke("account-auth", {
-        body: payload,
-        headers: token
-          ? {
-              Authorization: `Bearer ${token}`,
-            }
-          : undefined,
-      });
+      await supabase.functions.invoke(
+        "account-auth",
+        {
+          body: payload,
+          headers: token
+            ? {
+                Authorization: `Bearer ${token}`,
+              }
+            : undefined,
+        }
+      );
 
     if (error) {
-  let serverMessage = "";
+      let serverMessage = "";
 
-  try {
-    const context = (error as any).context;
+      try {
+        const context = (error as any).context;
 
-    if (context?.clone) {
-      const response = context.clone();
+        if (context?.clone) {
+          const response = context.clone();
 
-      const body = await response
-        .json()
-        .catch(() => null);
+          const body = await response
+            .json()
+            .catch(() => null);
 
-      serverMessage =
-        body?.error ||
-        body?.message ||
-        "";
+          serverMessage =
+            body?.error ||
+            body?.message ||
+            "";
+        }
+      } catch {
+        // Ignore response parsing errors.
+      }
+
+      throw new Error(
+        serverMessage ||
+          error.message ||
+          "Something went wrong."
+      );
     }
-  } catch {
-    // Ignore response parsing errors.
-  }
-
-  throw new Error(
-    serverMessage ||
-      error.message ||
-      "Something went wrong."
-  );
-}
 
     if (data?.error) {
       throw new Error(data.error);
@@ -76,95 +82,68 @@ export async function callFunction(name: string, payload: any) {
 
     return data;
   }
-// =====================================================
-// Supabase notes
-// =====================================================
 
-if (name === "notes") {
-  const token = payload?.token;
+  // =====================================================
+  // Supabase notes
+  // =====================================================
 
-  const { data, error } =
-    await supabase.functions.invoke("notes", {
-      body: payload,
-      headers: token
-        ? {
-            Authorization: `Bearer ${token}`,
-          }
-        : undefined,
-    });
+  if (name === "notes") {
+    const token = payload?.token;
 
-  if (error) {
-    let serverMessage = "";
+    const { data, error } =
+      await supabase.functions.invoke(
+        "notes",
+        {
+          body: payload,
+          headers: token
+            ? {
+                Authorization: `Bearer ${token}`,
+              }
+            : undefined,
+        }
+      );
 
-    try {
-      const context = (error as any).context;
+    if (error) {
+      let serverMessage = "";
 
-      if (context?.clone) {
-        const response = context.clone();
+      try {
+        const context = (error as any).context;
 
-        const body = await response
-          .json()
-          .catch(() => null);
+        if (context?.clone) {
+          const response = context.clone();
 
-        serverMessage =
-          body?.error ||
-          body?.message ||
-          "";
+          const body = await response
+            .json()
+            .catch(() => null);
+
+          serverMessage =
+            body?.error ||
+            body?.message ||
+            "";
+        }
+      } catch {
+        // Ignore response parsing errors.
       }
-    } catch {
-      // Ignore response parsing errors.
+
+      throw new Error(
+        serverMessage ||
+          error.message ||
+          "Something went wrong."
+      );
     }
 
-    throw new Error(
-      serverMessage ||
-        error.message ||
-        "Something went wrong."
-    );
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+
+    return data;
   }
 
-  if (data?.error) {
-    throw new Error(data.error);
-  }
-
-  return data;
-}
   // =====================================================
-  // Base44 fallback
+  // Unknown function
   // =====================================================
 
-  let res: any;
-
-  try {
-    res = await base44.functions.invoke(
-      name,
-      payload
-    );
-  } catch (err: any) {
-    const data =
-      err?.response?.data ||
-      err?.data ||
-      {};
-
-    const msg =
-      data?.error ||
-      err?.message ||
-      "Something went wrong.";
-
-    throw new Error(
-      typeof msg === "string"
-        ? msg
-        : "Something went wrong."
-    );
-  }
-
-  const data = res?.data;
-
-  if (res?.status >= 400) {
-    throw new Error(
-      data?.error ||
-        "Something went wrong."
-    );
-  }
-
-  return data;
+  throw new Error(
+    `Unsupported function: ${name}`
+  );
 }

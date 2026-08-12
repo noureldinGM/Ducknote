@@ -828,6 +828,79 @@ return json({
         ok: true,
       });
     }
+    // =====================================================
+    // UPDATE OWN PROFILE
+    // =====================================================
+
+if (action === "updateProfile") {
+  const profile = await getAuthenticatedProfile(req, ctx);
+
+  if (!profile) {
+    return json(
+      {
+        error: "Your session expired. Please log in again.",
+      },
+      401
+    );
+  }
+
+  const displayName = String(
+    body.displayName || ""
+  ).trim();
+
+  const profileImage = String(
+    body.profileImage || ""
+  ).trim();
+
+  const notifyText = body.notifyText !== false;
+  const notifyAudio = body.notifyAudio !== false;
+
+  if (!displayName) {
+    return json(
+      {
+        error: "Display name is required.",
+      },
+      400
+    );
+  }
+
+  if (displayName.length > 50) {
+    return json(
+      {
+        error: "Display name must be 50 characters or less.",
+      },
+      400
+    );
+  }
+
+  const { data: updated, error: updateError } =
+    await ctx.supabaseAdmin
+      .from("profiles")
+      .update({
+        display_name: displayName,
+        profile_image: profileImage,
+        notify_text: notifyText,
+        notify_audio: notifyAudio,
+      })
+      .eq("id", profile.id)
+      .select()
+      .single();
+
+  if (updateError || !updated) {
+    return json(
+      {
+        error:
+          updateError?.message ||
+          "Could not update your profile.",
+      },
+      500
+    );
+  }
+
+  return json({
+    account: toPublicAccount(updated),
+  });
+}
         // =====================================================
         // ADMIN AUTHORIZATION
         // All actions below require a real Supabase
