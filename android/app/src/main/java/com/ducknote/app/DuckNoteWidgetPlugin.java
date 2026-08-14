@@ -47,6 +47,9 @@ public class DuckNoteWidgetPlugin extends Plugin {
     private static final String KEY_REACTED =
             "reacted";
 
+    private static final String KEY_REACTION_AT =
+            "reaction_at";
+
     private static final String SESSION_PREFS_NAME =
             "ducknote_secure_session";
 
@@ -118,6 +121,25 @@ public class DuckNoteWidgetPlugin extends Plugin {
                         ""
                 );
 
+        JSObject data = call.getData();
+
+        boolean hasReaction =
+                data.has("reacted") &&
+                !data.isNull("reacted");
+
+        boolean reacted =
+                hasReaction &&
+                call.getBoolean(
+                        "reacted",
+                        false
+                );
+
+        String reactionAt =
+                call.getString(
+                        "reactionAt",
+                        ""
+                );
+
         Context context =
                 getContext();
 
@@ -127,25 +149,20 @@ public class DuckNoteWidgetPlugin extends Plugin {
                         Context.MODE_PRIVATE
                 );
 
-        // Reset reaction state when the note changes.
+        SharedPreferences.Editor editor =
+                prefs.edit();
+
         String previousNoteId =
                 prefs.getString(
                         KEY_NOTE_ID,
                         ""
                 );
 
-        SharedPreferences.Editor editor =
-                prefs.edit();
-
-        if (
-                !noteId.isEmpty() &&
-                !noteId.equals(previousNoteId)
-        ) {
-            editor.putBoolean(
-                    KEY_REACTED,
-                    false
-            );
-        }
+        String previousReactionAt =
+                prefs.getString(
+                        KEY_REACTION_AT,
+                        ""
+                );
 
         editor
                 .putString(
@@ -171,8 +188,35 @@ public class DuckNoteWidgetPlugin extends Plugin {
                 .putString(
                         KEY_AUDIO_URL,
                         audioUrl
-                )
-                .apply();
+                );
+
+        if (!noteId.equals(previousNoteId)) {
+            // A new note has no existing widget reaction to preserve.
+            editor.putBoolean(
+                    KEY_REACTED,
+                    hasReaction && reacted
+            ).putString(
+                    KEY_REACTION_AT,
+                    hasReaction ? reactionAt : ""
+            );
+        } else if (
+                hasReaction &&
+                DuckNoteWidgetProvider
+                        .isNewerReactionVersion(
+                                reactionAt,
+                                previousReactionAt
+                        )
+        ) {
+            editor.putBoolean(
+                    KEY_REACTED,
+                    reacted
+            ).putString(
+                    KEY_REACTION_AT,
+                    reactionAt
+            );
+        }
+
+        editor.apply();
 
         DuckNoteWidgetProvider.updateAllWidgets(
                 context
@@ -197,30 +241,32 @@ public class DuckNoteWidgetPlugin extends Plugin {
     public void syncReactionState(
             PluginCall call
     ) {
+        String noteId =
+                call.getString(
+                        "noteId",
+                        ""
+                );
+
         boolean reacted =
                 call.getBoolean(
                         "reacted",
                         false
                 );
 
+        String reactionAt =
+                call.getString(
+                        "reactionAt",
+                        ""
+                );
+
         Context context =
                 getContext();
 
-        SharedPreferences prefs =
-                context.getSharedPreferences(
-                        PREFS_NAME,
-                        Context.MODE_PRIVATE
-                );
-
-        prefs.edit()
-                .putBoolean(
-                        KEY_REACTED,
-                        reacted
-                )
-                .apply();
-
-        DuckNoteWidgetProvider.updateAllWidgets(
-                context
+        DuckNoteWidgetProvider.updateReactionState(
+                context,
+                noteId,
+                reacted,
+                reactionAt
         );
 
         JSObject result =

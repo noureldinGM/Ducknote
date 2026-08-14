@@ -1,100 +1,115 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="10dp"
-    android:background="#FFF7F8">
+    android:padding="8dp"
+    android:background="@drawable/ducknote_widget_background">
 
+    <!-- Header -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:layout_height="24dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="🦆 DuckNote"
-            android:textColor="#24131A"
-            android:textSize="18sp"
+            android:id="@+id/widget_brand"
+            android:layout_width="wrap_content"
+            android:layout_height="24dp"
+            android:background="@drawable/ducknote_widget_brand_background"
+            android:gravity="center"
+            android:paddingLeft="9dp"
+            android:paddingRight="9dp"
+            android:text="DuckNote"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/widget_time"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end|center_vertical"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:text="Just now"
-            android:textColor="#8A737B"
-            android:textSize="10sp" />
+            android:textColor="#8F627A"
+            android:textSize="11sp" />
 
     </LinearLayout>
 
+    <!-- Note -->
     <LinearLayout
         android:id="@+id/widget_note_container"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:layout_marginTop="5dp"
-        android:orientation="vertical"
-        android:gravity="center_vertical">
+        android:orientation="vertical">
 
         <TextView
             android:id="@+id/widget_sender"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Ahmed"
-            android:textColor="#24131A"
-            android:textSize="17sp"
-            android:textStyle="bold"
+            android:ellipsize="end"
             android:maxLines="1"
-            android:ellipsize="end" />
+            android:text="Someone special"
+            android:textColor="#3C1730"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/widget_note"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:text="Your little note"
-            android:textColor="#24131A"
-            android:textSize="18sp"
+            android:ellipsize="end"
             android:lineSpacingExtra="1dp"
             android:maxLines="2"
-            android:ellipsize="end" />
+            android:text="Your little note preview"
+            android:textColor="#5F354C"
+            android:textSize="16sp" />
 
     </LinearLayout>
 
+    <!-- Actions -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="end"
+        android:layout_height="40dp"
+        android:layout_marginTop="6dp"
+        android:gravity="end|center_vertical"
         android:orientation="horizontal">
 
         <TextView
-            android:id="@+id/widget_react"
-            android:layout_width="44dp"
-            android:layout_height="38dp"
-            android:gravity="center"
-            android:text="♡"
-            android:textColor="#D14B6A"
-            android:textSize="25sp"
-            android:clickable="true"
-            android:focusable="true" />
-
-        <TextView
             android:id="@+id/widget_play"
-            android:layout_width="44dp"
-            android:layout_height="38dp"
-            android:gravity="center"
-            android:text="▶"
-            android:textColor="#24131A"
-            android:textSize="19sp"
+            android:layout_width="72dp"
+            android:layout_height="40dp"
+            android:background="@drawable/ducknote_widget_audio_action_background"
             android:clickable="true"
             android:focusable="true"
+            android:gravity="center"
+            android:text="▶  Audio"
+            android:textColor="#5C3178"
+            android:textSize="12sp"
+            android:textStyle="bold"
             android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/widget_react"
+            android:layout_width="70dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="7dp"
+            android:background="@drawable/ducknote_widget_reaction_action_background"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="♡  Like"
+            android:textColor="#BE3D6A"
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
     </LinearLayout>
 

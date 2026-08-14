@@ -1,0 +1,16 @@
+﻿{
+  "name": "DuckNote",
+  "short_name": "DuckNote",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFF7F8",
+  "theme_color": "#E45A89",
+  "icons": [
+    {
+      "src": "/ducknote-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

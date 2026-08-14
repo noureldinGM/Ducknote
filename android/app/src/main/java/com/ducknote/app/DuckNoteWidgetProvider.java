@@ -22,6 +22,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.UUID;
 
 public class DuckNoteWidgetProvider extends AppWidgetProvider {
 
@@ -48,6 +49,9 @@ public class DuckNoteWidgetProvider extends AppWidgetProvider {
 
     private static final String KEY_REACTED =
             "reacted";
+
+    private static final String KEY_REACTION_AT =
+            "reaction_at";
 
     private static final String KEY_PLAYING =
             "playing";
@@ -387,8 +391,8 @@ public class DuckNoteWidgetProvider extends AppWidgetProvider {
             views.setTextViewText(
                     R.id.widget_react,
                     reacted
-                            ? "\u2665"
-                            : "\u2661"
+                            ? "\u2665  Liked"
+                            : "\u2661  Like"
             );
 
             Intent reactIntent =
@@ -435,8 +439,8 @@ public class DuckNoteWidgetProvider extends AppWidgetProvider {
             views.setTextViewText(
                     R.id.widget_play,
                     playing
-                            ? "\u23F8"
-                            : "\u25B6"
+                            ? "\u23F8  Pause"
+                            : "\u25B6  Audio"
             );
 
             Intent playIntent =
@@ -586,6 +590,11 @@ public class DuckNoteWidgetProvider extends AppWidgetProvider {
                 accessToken
         );
 
+        payload.put(
+                "mutationId",
+                UUID.randomUUID().toString()
+        );
+
         String functionUrl =
                 supabaseUrl
                         + "/functions/v1/notes";
@@ -676,38 +685,130 @@ public class DuckNoteWidgetProvider extends AppWidgetProvider {
                         Context.MODE_PRIVATE
                 );
 
-        boolean current =
-                prefs.getBoolean(
-                        KEY_REACTED,
-                        false
+        JSONObject reactionObj =
+                response.optJSONObject(
+                        "reaction"
                 );
 
-        boolean reacted;
+        if (
+                reactionObj == null ||
+                !reactionObj.has("heart")
+        ) {
+            throw new Exception(
+                    "Widget reaction response was incomplete."
+            );
+        }
 
-        if (response.has("reaction")
-                && !response.isNull("reaction")) {
+        // The notes function toggles the persisted reaction and
+        // returns its resulting state. Never derive this from the
+        // widget's previous visual state.
+        boolean reacted =
+                reactionObj.getBoolean(
+                        "heart"
+                );
 
-            JSONObject reactionObj =
-                    response.optJSONObject(
-                            "reaction"
-                    );
+        String reactionAt =
+                reactionObj.optString(
+                        "at",
+                        ""
+                );
 
-            if (reactionObj != null) {
+        // A newer note may have reached the widget while this
+        // request was in flight. Do not apply an old note's reaction
+        // to the newly displayed note.
+       applyServerReactionState(
+                context,
+                noteId,
+                reacted,
+                reactionAt
+        );
+    }
+private static boolean applyServerReactionState(
+        Context context,
+        String noteId,
+        boolean reacted,
+        String reactionAt
+) {
+    if (noteId == null || noteId.isEmpty()) {
+        return false;
+    }
 
-                reacted =
-                        reactionObj.optBoolean(
-                                "heart",
-                                !current
-                        );
+    SharedPreferences prefs =
+            context.getSharedPreferences(
+                    PREFS_NAME,
+                    Context.MODE_PRIVATE
+            );
 
-            } else {
+    String displayedNoteId =
+            prefs.getString(
+                    KEY_NOTE_ID,
+                    ""
+            );
 
-                reacted = !current;
-            }
+    // Never apply a reaction response to a different note.
+    if (!noteId.equals(displayedNoteId)) {
+        return false;
+    }
 
-        } else {
+    // This response came directly from the server mutation
+    // initiated by the widget, so it is authoritative.
+    prefs.edit()
+            .putBoolean(
+                    KEY_REACTED,
+                    reacted
+            )
+            .putString(
+                    KEY_REACTION_AT,
+                    reactionAt == null ? "" : reactionAt
+            )
+            .apply();
 
-            reacted = !current;
+    updateAllWidgets(context);
+
+    return true;
+}
+    /**
+     * Applies only the server's current reaction for the note that
+     * the widget is displaying. ISO-8601 values sort chronologically,
+     * so an older list response cannot overwrite a newer mutation.
+     */
+    public static boolean updateReactionState(
+            Context context,
+            String noteId,
+            boolean reacted,
+            String reactionAt
+    ) {
+        if (noteId == null || noteId.isEmpty()) {
+            return false;
+        }
+
+        SharedPreferences prefs =
+                context.getSharedPreferences(
+                        PREFS_NAME,
+                        Context.MODE_PRIVATE
+                );
+
+        String displayedNoteId =
+                prefs.getString(
+                        KEY_NOTE_ID,
+                        ""
+                );
+
+        if (!noteId.equals(displayedNoteId)) {
+            return false;
+        }
+
+        String currentReactionAt =
+                prefs.getString(
+                        KEY_REACTION_AT,
+                        ""
+                );
+
+        if (!isNewerReactionVersion(
+                reactionAt,
+                currentReactionAt
+        )) {
+            return false;
         }
 
         prefs.edit()
@@ -715,11 +816,37 @@ public class DuckNoteWidgetProvider extends AppWidgetProvider {
                         KEY_REACTED,
                         reacted
                 )
+                .putString(
+                        KEY_REACTION_AT,
+                        reactionAt == null ? "" : reactionAt
+                )
                 .apply();
 
-        updateAllWidgets(
-                context
-        );
+        updateAllWidgets(context);
+
+        return true;
+    }
+
+    public static boolean isNewerReactionVersion(
+            String incomingReactionAt,
+            String currentReactionAt
+    ) {
+        String incoming =
+                incomingReactionAt == null
+                        ? ""
+                        : incomingReactionAt;
+
+        String current =
+                currentReactionAt == null
+                        ? ""
+                        : currentReactionAt;
+
+        if (incoming.isEmpty()) {
+            return current.isEmpty();
+        }
+
+        return current.isEmpty() ||
+                incoming.compareTo(current) >= 0;
     }
 
     // =====================================================

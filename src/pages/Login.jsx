@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
-import { Lock, Loader2, Heart, User } from "lucide-react";
+import { Lock, Loader2, User } from "lucide-react";
 import AppButton from "@/components/system/AppButton";
 import AppInput from "@/components/system/AppInput";
 import BrandMark from "@/components/brand/BrandMark";
@@ -35,7 +35,13 @@ export default function Login() {
       <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-sm flex-col justify-center">
         <div className="mb-8 text-center">
           <BrandMark />
-          <div className="mx-auto mt-8 grid h-16 w-16 place-items-center rounded-[1.4rem] bg-gradient-to-br from-rose-500 to-violet-500 text-white shadow-xl shadow-rose-200"><Heart className="h-7 w-7 fill-white" /></div>
+          <div className="mx-auto mt-8 h-16 w-16 overflow-hidden rounded-[1.4rem] shadow-xl shadow-rose-200">
+            <img
+              src="/ducknote-icon.png"
+              alt="DuckNote"
+              className="h-full w-full object-cover"
+              />
+            </div>
           <h1 className="mt-5 font-heading text-4xl font-black tracking-tight text-rose-950">Welcome back, lovely.</h1>
           <p className="mt-3 text-sm leading-6 text-rose-500">Your private little corner is waiting.</p>
         </div>

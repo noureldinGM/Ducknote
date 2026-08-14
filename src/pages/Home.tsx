@@ -10,7 +10,10 @@ import { useNotes } from "@/hooks/useNotes";
 import { useFriends } from "@/hooks/useFriends";
 import { toggleReaction } from "@/lib/notes";
 import { callFunction } from "@/lib/callFn";
-import { updateDuckNoteWidget } from "@/lib/duckNoteWidget";
+import {
+  syncDuckNoteWidgetReaction,
+  updateDuckNoteWidget,
+} from "@/lib/duckNoteWidget";
 
 import NoteBubble from "@/components/notes/NoteBubble";
 import SurfaceCard from "@/components/system/SurfaceCard";
@@ -39,66 +42,6 @@ export default function Home() {
     error,
     reload,
   } = useNotes("received");
-  useEffect(() => {
-    const handleWidgetReact = async (
-      event: Event
-    ) => {
-      const customEvent =
-        event as CustomEvent<{
-          noteId?: string;
-        }>;
-
-      const noteId =
-        customEvent.detail?.noteId;
-
-      if (!noteId || !user?.id || !token) {
-        return;
-      }
-
-      const note =
-        notes.find(
-          (item: any) =>
-            item.id === noteId
-        );
-
-      if (!note) {
-        return;
-      }
-
-      try {
-        await toggleReaction(
-          note,
-          user.id,
-          token
-        );
-
-        await reload();
-      } catch (error) {
-        console.error(
-          "[DuckNote Widget] Reaction failed:",
-          error
-        );
-      }
-    };
-
-    window.addEventListener(
-      "ducknote-widget-react",
-      handleWidgetReact
-    );
-
-    return () => {
-      window.removeEventListener(
-        "ducknote-widget-react",
-        handleWidgetReact
-      );
-    };
-  }, [
-    notes,
-    user?.id,
-    token,
-    reload,
-  ]);
-
   const { friends } = useFriends();
 
   const [openId, setOpenId] = useState<string | null>(null);
@@ -127,6 +70,30 @@ export default function Home() {
   useEffect(() => {
     reloadRef.current = reload;
   }, [reload]);
+
+  // Widget actions happen in the native process, so reload once
+  // when the app becomes visible instead of relying on stale state.
+  useEffect(() => {
+    const refreshOnReturn = () => {
+      if (document.visibilityState === "visible") {
+        reloadRef.current();
+      }
+    };
+
+    document.addEventListener(
+      "visibilitychange",
+      refreshOnReturn
+    );
+    window.addEventListener("focus", refreshOnReturn);
+
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        refreshOnReturn
+      );
+      window.removeEventListener("focus", refreshOnReturn);
+    };
+  }, []);
 
   // =====================================================
   // Supabase Realtime - new received notes
@@ -193,6 +160,32 @@ export default function Home() {
   const unread = notes.filter(
     (n: any) => n.status !== "read"
   ).length;
+
+  const reactToNote = async (note: any) => {
+    try {
+      const reaction = await toggleReaction(
+        note,
+        user.id,
+        token
+      );
+
+      // Sync only the backend result. Note details continue to flow
+      // through the normal list update and cannot reset this state.
+      if (note.id === notes[0]?.id) {
+        await syncDuckNoteWidgetReaction(
+          note.id,
+          reaction
+        );
+      }
+
+      await reload();
+    } catch (error) {
+      console.error(
+        "[DuckNote] Reaction failed:",
+        error
+      );
+    }
+  };
 
   const open = async (note: any) => {
     setOpenId(note.id);
@@ -325,15 +318,7 @@ export default function Home() {
                   other={n.sender}
                   direction="received"
                   onOpen={() => open(n)}
-                  onReact={() =>
-                    toggleReaction(
-                      n,
-                      user.id,
-                      token
-                    )
-                      .then(() => reload())
-                      .catch(() => { })
-                  }
+                  onReact={() => reactToNote(n)}
                 />
               </motion.div>
             )

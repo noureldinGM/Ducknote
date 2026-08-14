@@ -255,10 +255,16 @@ async function sendPushNotification({
   recipient,
   note,
   sender,
+  notification,
 }: {
   recipient: any;
   note: any;
   sender: any;
+  notification?: {
+    title: string;
+    body: string;
+    type: "note" | "reaction";
+  };
 }) {
   // ---------------------------------------------------------
   // Respect user's notification settings
@@ -331,14 +337,16 @@ async function sendPushNotification({
     "Someone";
 
   const title =
-    note.type === "audio"
+    notification?.title ||
+    (note.type === "audio"
       ? "🎤 New audio note"
-      : "📝 New note";
+      : "📝 New note");
 
   const body =
-    note.type === "audio"
+    notification?.body ||
+    (note.type === "audio"
       ? `${senderName} sent you an audio note`
-      : `${senderName} sent you a note`;
+      : `${senderName} sent you a note`);
 
   // ---------------------------------------------------------
   // Send to every active device
@@ -376,6 +384,8 @@ async function sendPushNotification({
                     note.recipient_id
                   ),
                   action: "open_note",
+                  notificationType:
+                    notification?.type || "note",
                 },
 
                 android: {
@@ -1125,13 +1135,32 @@ export default {
           body.noteId || ""
         );
 
+        const suppliedMutationId = String(
+          body.mutationId || ""
+        ).trim();
+
+        if (suppliedMutationId.length > 128) {
+          return json(
+            {
+              error: "Invalid reaction request.",
+            },
+            400
+          );
+        }
+
+        // Older clients may not include an ID, but new app and
+        // widget actions do. Persisting it makes a retried mutation
+        // idempotent instead of producing a duplicate notification.
+        const mutationId =
+          suppliedMutationId || crypto.randomUUID();
+
         const {
           data: note,
           error,
         } = await supabaseAdmin
           .from("notes")
           .select(
-            "id,reaction"
+            "id,sender_id,recipient_id,type,reaction"
           )
           .eq("id", noteId)
           .eq(
@@ -1152,18 +1181,30 @@ export default {
           );
         }
 
+        if (
+          note.reaction?.mutationId === mutationId
+        ) {
+          return json({
+            reaction: note.reaction,
+            changed: false,
+          });
+        }
+
         const heart =
           note.reaction?.heart !== true;
 
         const reaction = {
           heart,
 
-          at: heart
-            ? new Date().toISOString()
-            : null,
+          // This is a state-version timestamp, including for an
+          // unlike. Native widget writes use it to reject an older
+          // list result that finishes after this mutation.
+          at: new Date().toISOString(),
+
+          mutationId,
         };
 
-        await supabaseAdmin
+        const { error: updateError } = await supabaseAdmin
           .from("notes")
           .update({
             reaction,
@@ -1173,8 +1214,72 @@ export default {
             note.id
           );
 
+        if (updateError) {
+          console.error(
+            "reaction update error:",
+            updateError
+          );
+
+          return json(
+            {
+              error: "Could not update the reaction.",
+            },
+            500
+          );
+        }
+
+        // The note sender is the owner whose note was liked. A
+        // recipient can only react to received notes, but keep the
+        // explicit check so a liker is never notified about themself.
+        if (
+          heart &&
+          note.sender_id &&
+          note.sender_id !== profile.id
+        ) {
+          try {
+            const {
+              data: noteOwner,
+              error: ownerError,
+            } = await supabaseAdmin
+              .from("profiles")
+              .select("*")
+              .eq("id", note.sender_id)
+              .maybeSingle();
+
+            if (
+              !ownerError &&
+              noteOwner &&
+              noteOwner.active !== false
+            ) {
+              const likerName =
+                profile.display_name ||
+                profile.username ||
+                "Someone";
+
+              await sendPushNotification({
+                recipient: noteOwner,
+                note,
+                sender: profile,
+                notification: {
+                  title: "DuckNote",
+                  body: `${likerName} liked your note ❤️`,
+                  type: "reaction",
+                },
+              });
+            }
+          } catch (notificationError) {
+            // The reaction is already persisted; a push failure must
+            // not report the successful mutation as a failure.
+            console.error(
+              "[DUCKNOTE PUSH] Like notification error:",
+              notificationError
+            );
+          }
+        }
+
         return json({
           reaction,
+          changed: true,
         });
       }
 

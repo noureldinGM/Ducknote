@@ -9,9 +9,13 @@ export default function DownloadPage() {
         <div className="w-full max-w-2xl text-center">
           {/* Brand */}
           <div className="mb-8">
-            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[28px] bg-white text-5xl shadow-lg ring-1 ring-rose-100">
-              🦆
-            </div>
+          <div className="mx-auto mb-5 h-20 w-20 overflow-hidden rounded-[28px] bg-white shadow-lg ring-1 ring-rose-100">
+            <img
+              src="/ducknote-icon.png"
+              alt="DuckNote"
+              className="h-full w-full object-cover"
+            />
+          </div>
 
             <h1 className="text-5xl font-black tracking-tight sm:text-6xl">
               DuckNote
