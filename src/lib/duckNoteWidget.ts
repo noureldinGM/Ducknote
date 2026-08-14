@@ -1,4 +1,4 @@
-import { registerPlugin } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 
 interface DuckNoteWidgetPlugin {
   updateLatestNote(options: {
@@ -8,6 +8,14 @@ interface DuckNoteWidgetPlugin {
     time: string;
     type: string;
     audioUrl: string;
+    reacted: boolean;
+    reactionAt: string;
+  }): Promise<{ ok: boolean }>;
+
+  syncReactionState(options: {
+    noteId: string;
+    reacted: boolean;
+    reactionAt: string;
   }): Promise<{ ok: boolean }>;
 
   syncSession(options: {
@@ -22,13 +30,15 @@ interface DuckNoteWidgetPlugin {
 }
 
 const DuckNoteWidget =
-  registerPlugin<DuckNoteWidgetPlugin>(
-    "DuckNoteWidget"
-  );
+  registerPlugin<DuckNoteWidgetPlugin>("DuckNoteWidget");
 
-export async function updateDuckNoteWidget(
-  note: any
-) {
+export async function updateDuckNoteWidget(note: any) {
+  // The Android home-screen widget has no web implementation.
+  // Do nothing when running in a normal browser.
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+
   if (!note?.id) {
     return;
   }
@@ -38,8 +48,7 @@ export async function updateDuckNoteWidget(
     note.sender?.username ||
     "Someone";
 
-  const text =
-    note.text || "";
+  const text = note.text || "";
 
   const createdAt =
     note.created_at ||
@@ -59,6 +68,14 @@ export async function updateDuckNoteWidget(
     note.audioUrl ||
     "";
 
+  // Reactions come from the notes function, which is the
+  // authoritative source for both the app and the widget.
+  const reacted =
+    note.reaction?.heart === true;
+
+  const reactionAt =
+    note.reaction?.at || "";
+
   try {
     await DuckNoteWidget.updateLatestNote({
       noteId: String(note.id),
@@ -67,6 +84,8 @@ export async function updateDuckNoteWidget(
       time,
       type,
       audioUrl: String(audioUrl),
+      reacted,
+      reactionAt: String(reactionAt),
     });
   } catch (error) {
     console.error(
@@ -83,18 +102,19 @@ export async function syncDuckNoteSession(
   refreshToken: string,
   userId: string
 ) {
+  // Widget session sync is Android-only.
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+
   try {
     const supabaseUrl =
       import.meta.env.VITE_SUPABASE_URL;
 
     const publishableKey =
-      import.meta.env
-        .VITE_SUPABASE_PUBLISHABLE_KEY;
+      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-    if (
-      !supabaseUrl ||
-      !publishableKey
-    ) {
+    if (!supabaseUrl || !publishableKey) {
       throw new Error(
         "Missing Supabase configuration."
       );
@@ -118,11 +138,49 @@ export async function syncDuckNoteSession(
 }
 
 export async function clearDuckNoteSession() {
+  // Widget session cleanup is Android-only.
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+
   try {
     await DuckNoteWidget.clearSession();
   } catch (error) {
     console.error(
       "[DuckNote Widget] Failed to clear session:",
+      error
+    );
+
+    throw error;
+  }
+}
+
+export async function syncDuckNoteWidgetReaction(
+  noteId: string,
+  reaction: any
+) {
+  // Widget reaction sync is Android-only.
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+
+  if (
+    !noteId ||
+    !reaction ||
+    typeof reaction.heart !== "boolean"
+  ) {
+    return;
+  }
+
+  try {
+    await DuckNoteWidget.syncReactionState({
+      noteId: String(noteId),
+      reacted: reaction.heart,
+      reactionAt: String(reaction.at || ""),
+    });
+  } catch (error) {
+    console.error(
+      "[DuckNote Widget] Failed to sync reaction:",
       error
     );
 
